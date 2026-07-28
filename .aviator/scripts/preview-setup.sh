@@ -48,21 +48,23 @@ mkdir -p /var/log/app
 # real values live in Aviator, not in this repo, and so the verify skill can
 # reference them as {{ secrets.* }}.
 #
-# Aviator names the injected env var exactly like the secret key. The keys are
-# lowercase by convention (the collector lowercases placeholder names), but the
-# uppercase spelling is accepted too so a secret created as UMAMI_ADMIN_PASSWORD
-# still works.
-ADMIN_USER="${umami_admin_username:-${UMAMI_ADMIN_USERNAME:-}}"
-ADMIN_PASS="${umami_admin_password:-${UMAMI_ADMIN_PASSWORD:-}}"
+# Aviator names the injected env var exactly like the account-secret key, so
+# these are the secret keys verbatim. The lowercase spelling is accepted as a
+# fallback: the config's `secrets:` list matches keys case-sensitively, but the
+# {{ secrets.* }} placeholders in the verify skill are resolved case-insensitively
+# — so a secret stored either way still reaches the skill, and this keeps the
+# script working if one is created in the other case.
+ADMIN_USER="${UMAMI_ADMIN_USERNAME:-${umami_admin_username:-}}"
+ADMIN_PASS="${UMAMI_ADMIN_PASSWORD:-${umami_admin_password:-}}"
 
 if [ -z "$ADMIN_PASS" ] || [ -z "$ADMIN_USER" ]; then
   # Fail rather than fall back to umami's default admin/umami. The verify agent
   # signs in with the secret values; if they are not here it would type
   # credentials that do not exist and report a working app as broken login.
   t "ERROR: admin credentials were not injected."
-  t "       Add account secrets 'umami_admin_username' and 'umami_admin_password'"
+  t "       Add account secrets 'UMAMI_ADMIN_USERNAME' and 'UMAMI_ADMIN_PASSWORD'"
   t "       (Verify -> Settings -> Secrets), then list both under 'secrets:' in"
-  t "       the preview config. Neither is optional."
+  t "       the preview config, spelled the same way. Neither is optional."
   exit 1
 fi
 

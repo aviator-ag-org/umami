@@ -14,9 +14,9 @@ Everything except `/login` requires authentication. Sign in first.
 
 1. Navigate to the preview URL. You will be redirected to `/login`.
 2. Fill the **Username** field (`[data-test="input-username"]`) with
-   `{{ secrets.umami_admin_username }}`.
+   `{{ secrets.UMAMI_ADMIN_USERNAME }}`.
 3. Fill the **Password** field (`[data-test="input-password"]`) with
-   `{{ secrets.umami_admin_password }}`.
+   `{{ secrets.UMAMI_ADMIN_PASSWORD }}`.
 4. Click **Log in** (`[data-test="button-submit"]`).
 
 You land on `/`, which is a client-side redirect to `/websites` — the websites
