@@ -43,6 +43,13 @@ export function WebsiteMetricsBar({
           formatValue: formatLongNumber,
         },
         {
+          label: t(labels.pagesPerVisit),
+          value: pageviews / visits,
+          prev: comparison.pageviews / comparison.visits,
+          change: pageviews / visits - comparison.pageviews / comparison.visits,
+          formatValue: n => (+n).toFixed(1),
+        },
+        {
           label: t(labels.bounceRate),
           value: (Math.min(visits, bounces) / visits) * 100,
           prev: (Math.min(comparison.visits, comparison.bounces) / comparison.visits) * 100,
