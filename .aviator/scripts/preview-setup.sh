@@ -120,7 +120,27 @@ else
   fi
 
   t "Starting PostgreSQL ${PGVER}..."
-  pg_ctlcluster "$PGVER" main start
+  # --skip-systemctl-redirect is load-bearing, not tidiness. Debian's wrapper
+  # hands the action to `systemctl start postgresql@<ver>-main` whenever
+  # /run/systemd/system exists and pg_ctlcluster was not itself run from init
+  # (the condition at /usr/bin/pg_ctlcluster:376). The e2b sandbox satisfies
+  # both, and that unit cannot come up there, so without this the start dies with
+  # "Job for postgresql@15-main.service failed because the service did not take
+  # the steps required by its unit configuration" and the preview is over before
+  # the app is even built.
+  #
+  # It does not reproduce in a plain container: there is no /run/systemd/system,
+  # and `docker run ... bash -c` makes bash PID 1 so getppid() == 1 — either one
+  # alone suppresses the redirect. To reproduce locally, create that directory
+  # and run the command one shell deeper.
+  #
+  # Keeping the cluster in this process tree is what we want anyway for a
+  # throwaway sandbox that nothing else supervises.
+  if ! pg_ctlcluster --skip-systemctl-redirect "$PGVER" main start; then
+    t "ERROR: could not start PostgreSQL — last log lines:"
+    tail -40 "/var/log/postgresql/postgresql-${PGVER}-main.log" | tee -a "$LOG" || true
+    exit 1
+  fi
 
   for i in $(seq 1 30); do
     pg_isready -q -h 127.0.0.1 -p 5432 && break
