@@ -11,14 +11,15 @@ export interface WebsitesTableProps extends DataTableProps {
   allowEdit?: boolean;
   allowView?: boolean;
   renderLink?: (row: any) => ReactNode;
+  displayMode?: 'table' | 'cards';
 }
 
-export function WebsitesTable({ showActions, renderLink, ...props }: WebsitesTableProps) {
+export function WebsitesTable({ showActions, renderLink, displayMode, ...props }: WebsitesTableProps) {
   const { t, labels } = useMessages();
   const { renderUrl } = useNavigation();
 
   return (
-    <DataTable {...props}>
+    <DataTable {...props} displayMode={displayMode}>
       <DataColumn id="name" label={<SortableLabel label={t(labels.name)} sortKey="name" />}>
         {renderLink}
       </DataColumn>
