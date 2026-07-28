@@ -13,15 +13,27 @@ Everything except `/login` requires authentication. Sign in first.
 ## Signing in
 
 1. Navigate to the preview URL. You will be redirected to `/login`.
-2. Fill the **Username** field (`[data-test="input-username"]`) with
+2. Wait for the form to appear. The login page is **fully client-rendered** —
+   the initial HTML contains no `<form>` and no inputs at all — so acting on the
+   first response finds nothing.
+3. Fill `[data-test="input-username"] input` with
    `{{ secrets.UMAMI_ADMIN_USERNAME }}`.
-3. Fill the **Password** field (`[data-test="input-password"]`) with
+4. Fill `[data-test="input-password"] input` with
    `{{ secrets.UMAMI_ADMIN_PASSWORD }}`.
-4. Click **Log in** (`[data-test="button-submit"]`).
+5. Click `[data-test="button-submit"]`.
 
-You land on `/`, which is a client-side redirect to `/websites` — the websites
-list. It renders `null` for a beat first, so wait for `/websites` rather than
-asserting on `/`.
+**The trailing ` input` on those two selectors is required.** `data-test` sits on
+a wrapper `<div>`, not on the field — verified against the rendered DOM, where
+`[data-test="input-username"]` is a `DIV` containing exactly one `<input>`.
+umami's own tests do the same thing
+(`getByTestId('input-username').locator('input')`, `tests/e2e/login.spec.ts`).
+Targeting the wrapper directly types nothing and looks like a broken login.
+`button-submit` is the real `<button>`, so click it directly.
+
+You land on `/`, which renders `null` and then client-redirects to `/websites` —
+the websites list. Wait for `/websites`; asserting on `/` catches an empty page.
+The websites table hydrates a beat after the route settles, so wait for its rows
+rather than reading it immediately.
 
 Carry the `{{ secrets.* }}` placeholders into the sign-in step verbatim. The
 collector substitutes the real values at call time and fences them to the
