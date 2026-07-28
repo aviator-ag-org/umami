@@ -51,25 +51,41 @@ The left nav covers the main areas. Useful routes:
 Website ids are uuids assigned at seed time, so read them off the websites list
 rather than hardcoding one.
 
-## Demo data, and the date-range trap
+## Demo data
 
-The preview image seeds two websites so the charts are not empty:
+The preview seeds two websites with roughly 30 days of traffic, so charts,
+tables and reports all have something in them:
 
 - **Demo Blog** — `blog.example.com`, low traffic, with `newsletter_signup`,
   `share_click` and `scroll_depth` events.
-- **Demo SaaS** — `app.example.com`, higher traffic, with a signup funnel
-  (`signup_started` / `signup_completed`), `purchase` revenue events,
-  `demo_requested`, `feature_viewed`, `cta_click` and `docs_search`.
+- **Demo SaaS** — `app.example.com`, higher traffic (~15k sessions, ~45k
+  events), with a signup funnel (`signup_started` / `signup_completed`),
+  `purchase` revenue events, `demo_requested`, `feature_viewed`, `cta_click`
+  and `docs_search`.
 
-**Read this before concluding "no data":** the seed covers the 30 days *before
-the preview image was built*, and umami's default date range is **Last 24
-hours**. If the image is more than a day old, every view opens empty. That is
-the image's age, not a bug in the branch. Widen the date range (the picker in
-the page header — pick something like *Last 90 days*) before judging any chart,
-table or report as broken.
+The seed is baked into the image, so its dates would drift as the image ages.
+The setup script shifts every seeded timestamp forward at each launch so the
+data always ends **today** — the default *Last 24 hours* range is populated, and
+you do not need to widen it. The shift is a whole number of days, which keeps
+the seed's hour-of-day traffic peaks intact, so the newest event can be up to a
+day old (always inside the default window).
 
-Realtime views are the exception: nothing is generating live traffic, so they
-are genuinely and permanently empty. Do not write scenarios against them.
+The nav sections that the analytics seed leaves empty are filled over umami's
+own API at launch:
+
+| Section | Seeded |
+| --- | --- |
+| Links | *Docs shortlink* (`/docs`), *Pricing shortlink* (`/pricing`) |
+| Pixels | *Newsletter open pixel* |
+| Boards | *Demo SaaS overview* |
+| Reports (Demo SaaS) | *Signup funnel* (a real funnel over `signup_started` → `signup_completed`), *Retention* |
+| Reports (Demo Blog) | *Newsletter signups* (a goal on `newsletter_signup`) |
+
+Teams and Segments are **not** seeded and open on empty states — that is
+expected, not a regression.
+
+Realtime views are also genuinely and permanently empty: nothing generates live
+traffic into the preview. Do not write scenarios against them.
 
 ## What is observable as evidence
 

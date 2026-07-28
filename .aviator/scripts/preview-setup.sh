@@ -285,6 +285,50 @@ else
   t "  demo data present ($WEBSITE_COUNT website(s))"
 fi
 
+# --- Keep the demo data looking current --------------------------------------
+#
+# The seed is baked into the image, so it covers the 30 days before the image was
+# BUILT — but umami's default date range is the last 24 hours
+# (DEFAULT_DATE_RANGE_VALUE in src/lib/constants.ts). A week-old image therefore
+# opens on empty charts everywhere, which reads as "this branch broke analytics"
+# rather than "this image is old".
+#
+# Shifting by a whole number of DAYS is deliberate: the seed models realistic
+# hour-of-day traffic peaks, and a partial-day shift would smear them. One offset
+# is applied to every table so sessions, events and revenue stay aligned with
+# each other. created_at is the only timeline column in these tables — date_value
+# is a user-supplied property value and is left alone.
+t "Refreshing demo data timestamps..."
+psql_umami -v ON_ERROR_STOP=1 -q <<'SQL' || t "  WARN: could not shift demo timestamps"
+DO $$
+DECLARE
+  latest      timestamptz;
+  shift_days  integer;
+BEGIN
+  SELECT max(created_at) INTO latest FROM website_event;
+
+  IF latest IS NULL THEN
+    RAISE NOTICE 'no seeded events — nothing to shift';
+    RETURN;
+  END IF;
+
+  shift_days := floor(extract(epoch FROM (now() - latest)) / 86400)::int;
+
+  IF shift_days < 1 THEN
+    RAISE NOTICE 'demo data is already current';
+    RETURN;
+  END IF;
+
+  UPDATE session       SET created_at = created_at + make_interval(days => shift_days);
+  UPDATE website_event SET created_at = created_at + make_interval(days => shift_days);
+  UPDATE event_data    SET created_at = created_at + make_interval(days => shift_days);
+  UPDATE session_data  SET created_at = created_at + make_interval(days => shift_days);
+  UPDATE revenue       SET created_at = created_at + make_interval(days => shift_days);
+
+  RAISE NOTICE 'shifted demo analytics forward % day(s)', shift_days;
+END $$;
+SQL
+
 # --- Start the server --------------------------------------------------------
 #
 # `next start` serves the .next build directly. The repo also emits a standalone
@@ -326,5 +370,135 @@ for i in $(seq 1 60); do
   fi
   sleep 1
 done
+
+# --- Fill the sections the analytics seed leaves empty ------------------------
+#
+# scripts/seed-data.ts only creates websites, sessions, events and revenue. Links,
+# Pixels, Reports and Boards are all empty states, so a whole side of the nav has
+# nothing to click.
+#
+# Created over umami's own HTTP API rather than by INSERTing rows: the API is the
+# contract the branch under test actually defines, so a branch that changes one of
+# these shapes changes the seed with it, and the payloads are validated instead of
+# silently writing something the UI cannot render.
+#
+# Non-fatal by design. An empty Links tab is not worth failing a preview over —
+# unlike a failed build, it cannot make the verifier believe a false thing.
+t "Seeding links, pixels, reports and boards..."
+if ! SEED_USER="$ADMIN_USER" SEED_PASS="$ADMIN_PASS" SEED_BASE="http://127.0.0.1:${PORT}" \
+     node - <<'JS' 2>&1 | sed 's/^/  /' | tee -a "$LOG"
+(async () => {
+  const BASE = process.env.SEED_BASE;
+
+  const login = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: process.env.SEED_USER, password: process.env.SEED_PASS }),
+  });
+  if (!login.ok) throw new Error(`login -> ${login.status}`);
+  const { token } = await login.json();
+
+  const api = async (path, body) => {
+    const res = await fetch(`${BASE}/api${path}`, {
+      method: body ? 'POST' : 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) throw new Error(`${path} -> ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return res.json();
+  };
+
+  // Paged endpoints answer {data:[...]}; tolerate a bare array too.
+  const listed = await api('/websites?pageSize=100');
+  const websites = listed.data ?? listed;
+  const find = name => websites.find(w => w.name === name);
+  const blog = find('Demo Blog');
+  const saas = find('Demo SaaS');
+
+  if (!blog || !saas) {
+    console.log('demo websites not found — skipping entity seed');
+    return;
+  }
+
+  // The reports open on their own saved range, so anchor it to the demo window
+  // that the timestamp shift above just moved onto today.
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - 29 * 864e5);
+  const range = { startDate: startDate.toISOString(), endDate: endDate.toISOString() };
+
+  const created = [];
+  const add = async (label, fn) => {
+    try { await fn(); created.push(label); }
+    catch (e) { console.log(`could not create ${label}: ${e.message}`); }
+  };
+
+  // Only seed what is actually empty, so a re-run does not pile up duplicates.
+  const isEmpty = async path => {
+    const r = await api(path);
+    return ((r.data ?? r).length ?? 0) === 0;
+  };
+
+  if (await isEmpty('/links?pageSize=1')) {
+    await add('link:docs', () => api('/links', {
+      name: 'Docs shortlink', url: 'https://app.example.com/docs', slug: 'docs',
+    }));
+    await add('link:pricing', () => api('/links', {
+      name: 'Pricing shortlink', url: 'https://app.example.com/pricing', slug: 'pricing',
+    }));
+  }
+
+  if (await isEmpty('/pixels?pageSize=1')) {
+    await add('pixel:newsletter', () => api('/pixels', {
+      name: 'Newsletter open pixel', slug: 'newsletter',
+    }));
+  }
+
+  if (await isEmpty('/boards?pageSize=1')) {
+    await add('board:demo-saas', () => api('/boards', {
+      type: 'website',
+      name: 'Demo SaaS overview',
+      description: 'Seeded board for the preview environment.',
+      parameters: { websiteId: saas.id },
+    }));
+  }
+
+  if (await isEmpty(`/reports?websiteId=${saas.id}&pageSize=1`)) {
+    // Both event names come from scripts/seed/sites/saas.ts, so the funnel has
+    // real traffic behind it rather than rendering as zeroes.
+    await add('report:signup-funnel', () => api('/reports', {
+      websiteId: saas.id,
+      type: 'funnel',
+      name: 'Signup funnel',
+      description: 'signup_started -> signup_completed',
+      parameters: {
+        ...range,
+        window: 60,
+        steps: [
+          { type: 'event', value: 'signup_started' },
+          { type: 'event', value: 'signup_completed' },
+        ],
+      },
+    }));
+    await add('report:retention', () => api('/reports', {
+      websiteId: saas.id, type: 'retention', name: 'Retention', parameters: { ...range },
+    }));
+  }
+
+  if (await isEmpty(`/reports?websiteId=${blog.id}&pageSize=1`)) {
+    // newsletter_signup is defined in scripts/seed/sites/blog.ts.
+    await add('report:newsletter-goal', () => api('/reports', {
+      websiteId: blog.id,
+      type: 'goal',
+      name: 'Newsletter signups',
+      parameters: { ...range, type: 'event', value: 'newsletter_signup' },
+    }));
+  }
+
+  console.log(created.length ? `created ${created.length}: ${created.join(', ')}` : 'nothing to create');
+})().catch(e => { console.log(`entity seed failed: ${e.message}`); process.exit(1); });
+JS
+then
+  t "  WARN: entity seed did not complete — Links/Pixels/Reports/Boards may be empty"
+fi
 
 t "Preview environment ready."
