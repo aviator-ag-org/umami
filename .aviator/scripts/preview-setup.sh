@@ -107,6 +107,27 @@ PGVER="$(ls /etc/postgresql | sort -V | tail -1)"
 mkdir -p /var/run/postgresql
 chown postgres:postgres /var/run/postgresql
 
+# Debian ships the cluster with `ssl = on` (postgresql.conf:105) pointing at the
+# ssl-cert package's "snakeoil" certificate. That file is present in the image
+# but NOT in the booted sandbox, so postgres refuses to start at all:
+#
+#   FATAL: could not load server certificate file
+#          "/etc/ssl/certs/ssl-cert-snakeoil.pem": No such file or directory
+#
+# Nothing but the app on 127.0.0.1 in this same sandbox ever connects to this
+# database, so TLS buys nothing here — turn it off rather than regenerate a
+# self-signed certificate that no client validates.
+#
+# Written to conf.d, which postgresql.conf already activates via
+# `include_dir = 'conf.d'` further down the file (line ~805) — so this wins over
+# the earlier `ssl = on` and the shipped config stays untouched.
+#
+# Applied unconditionally rather than only when the certificate is missing: an
+# environment-conditional path is exactly what let the systemd-redirect bug
+# reach the sandbox untested. One code path everywhere means the local run
+# exercises what the sandbox runs.
+printf 'ssl = off\n' > "/etc/postgresql/${PGVER}/main/conf.d/99-preview.conf"
+
 if pg_isready -q -h 127.0.0.1 -p 5432; then
   t "PostgreSQL already running"
 else
