@@ -71,7 +71,6 @@ export function SideNav(props: any) {
   return (
     <Column
       {...props}
-      backgroundColor="surface-base"
       border
       borderRadius
       padding="2"
@@ -82,6 +81,8 @@ export function SideNav(props: any) {
         width: isCollapsed ? '60px' : '240px',
         transition: 'width 0.2s ease-in-out',
         overflow: 'hidden',
+        backgroundColor: '#1e3a8a',
+        color: 'white',
       }}
     >
       <Row
@@ -93,7 +94,7 @@ export function SideNav(props: any) {
         <Row padding="3" alignItems="center" justifyContent="space-between" flexGrow="1">
           {!isCollapsed && (
             <IconLabel icon={<Logo />}>
-              <Text weight="bold">umami</Text>
+              <Text weight="bold" style={{ color: 'white' }}>umami</Text>
             </IconLabel>
           )}
           <PanelButton />
@@ -116,8 +117,8 @@ export function SideNav(props: any) {
                     <Focusable>
                       <Row
                         alignItems="center"
-                        hover={{ backgroundColor: 'surface-sunken' }}
-                        backgroundColor={isSelected ? 'surface-sunken' : undefined}
+                        hover={{ backgroundColor: '#2563eb' }}
+                        backgroundColor={isSelected ? '#3b82f6' : undefined}
                         borderRadius
                         minHeight="40px"
                       >
@@ -153,7 +154,7 @@ const PanelButton = (props: ButtonProps) => {
       {...props}
       style={{ padding: 0 }}
     >
-      <Icon strokeColor="muted">
+      <Icon strokeColor="white">
         <PanelLeft />
       </Icon>
     </Button>
