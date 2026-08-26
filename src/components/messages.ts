@@ -154,6 +154,7 @@ export const labels: Record<string, string> = {
   uniqueEvents: 'label.unique-events',
   bounceRate: 'label.bounce-rate',
   viewsPerVisit: 'label.views-per-visit',
+  pagesPerVisit: 'label.pages-per-visit',
   visitDuration: 'label.visit-duration',
   desktop: 'label.desktop',
   laptop: 'label.laptop',
