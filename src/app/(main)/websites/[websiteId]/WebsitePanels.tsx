@@ -1,9 +1,8 @@
-import { Grid, Heading, Row, Tab, TabList, TabPanel, Tabs } from '@umami/react-zen';
+import { Grid, Heading, Tab, TabList, TabPanel, Tabs } from '@umami/react-zen';
 import { GridRow } from '@/components/common/GridRow';
 import { Panel } from '@/components/common/Panel';
-import { useMessages, useMobile } from '@/components/hooks';
+import { useMessages } from '@/components/hooks';
 import { MetricsTable } from '@/components/metrics/MetricsTable';
-import { WeeklyTraffic } from '@/components/metrics/WeeklyTraffic';
 import { WorldMap } from '@/components/metrics/WorldMap';
 
 export function WebsitePanels({ websiteId }: { websiteId: string }) {
@@ -16,7 +15,6 @@ export function WebsitePanels({ websiteId }: { websiteId: string }) {
     metric: t(labels.visitors),
   };
   const rowProps = { minHeight: '570px' };
-  const { isMobile } = useMobile();
 
   return (
     <Grid gap="3">
@@ -103,15 +101,9 @@ export function WebsitePanels({ websiteId }: { websiteId: string }) {
         </Panel>
       </GridRow>
 
-      <GridRow layout="two-one" {...rowProps}>
-        <Panel paddingX="0" paddingY="0" style={{ gridColumn: isMobile ? 'span 1' : 'span 2' }}>
+      <GridRow layout="one" {...rowProps}>
+        <Panel paddingX="0" paddingY="0">
           <WorldMap websiteId={websiteId} />
-        </Panel>
-
-        <Panel>
-          <Heading size="2xl">{t(labels.traffic)}</Heading>
-          <Row border="bottom" marginBottom="4" />
-          <WeeklyTraffic websiteId={websiteId} />
         </Panel>
       </GridRow>
     </Grid>
