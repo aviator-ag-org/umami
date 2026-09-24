@@ -125,7 +125,6 @@ export function BoardComponentSelect({
 
   const needsWebsite = selectedDef?.requiresWebsite !== false;
   const isOpenType = isOpenBoardType(boardType);
-  const hasSelectedEntity = isOpenType ? !!selectedEntityId : !!boardEntityId;
   const resolvedEntityType = needsWebsite
     ? isOpenType
       ? selectedEntityType
@@ -319,8 +318,7 @@ export function BoardComponentSelect({
         <Column gap="3" height="100%" style={{ width: 280, flexShrink: 0, minWidth: 0 }}>
           <Text weight="bold">Components</Text>
           <Column border="left" paddingLeft="4" height="100%" style={{ minHeight: 0 }}>
-            {hasSelectedEntity ? (
-              <Column gap="1" height="100%" style={{ overflowY: 'auto', minHeight: 0 }}>
+            <Column gap="1" height="100%" style={{ overflowY: 'auto', minHeight: 0 }}>
                 {availableDefinitions.map(def => {
                   const Icon = def.icon;
 
@@ -356,18 +354,13 @@ export function BoardComponentSelect({
                   );
                 })}
               </Column>
-            ) : (
-              <Column alignItems="center" justifyContent="center" height="100%">
-                <Text color="muted">{t(messages.selectBoardEntityFirst)}</Text>
-              </Column>
-            )}
           </Column>
         </Column>
 
         <Column gap="3" flexGrow={1} height="100%" style={{ minWidth: 0 }}>
           <Text weight="bold">Preview</Text>
           <Column border="left" paddingLeft="4" height="100%" style={{ minWidth: 0 }}>
-            {hasSelectedEntity && previewConfig && (!needsWebsite || resolvedEntityId) ? (
+            {previewConfig && (!needsWebsite || resolvedEntityId) ? (
               <BoardComponentRenderer
                 config={previewConfig}
                 websiteId={resolvedEntityId}
@@ -376,11 +369,9 @@ export function BoardComponentSelect({
             ) : (
               <Column alignItems="center" justifyContent="center" height="100%">
                 <Text color="muted">
-                  {!hasSelectedEntity
+                  {selectedDef && needsWebsite && !resolvedEntityId
                     ? t(messages.selectBoardEntityFirst)
-                    : resolvedEntityId
-                      ? t(messages.selectComponentPreview)
-                      : t(messages.selectBoardEntityFirst)}
+                    : t(messages.selectComponentPreview)}
                 </Text>
               </Column>
             )}
