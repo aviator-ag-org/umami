@@ -78,6 +78,8 @@ export const labels: Record<string, string> = {
   dashboard: 'label.dashboard',
   open: 'label.open',
   more: 'label.more',
+  less: 'label.less',
+  peak: 'label.peak',
   realtime: 'label.realtime',
   queries: 'label.queries',
   teams: 'label.teams',

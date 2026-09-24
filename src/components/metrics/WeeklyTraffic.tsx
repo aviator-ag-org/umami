@@ -1,8 +1,18 @@
 import { Focusable, Grid, Row, Text, Tooltip, TooltipTrigger } from '@umami/react-zen';
 import { addHours, format, startOfDay } from 'date-fns';
+import { Fragment } from 'react';
 import { LoadingPanel } from '@/components/common/LoadingPanel';
 import { useLocale, useMessages, useWeeklyTrafficQuery } from '@/components/hooks';
 import { getDayOfWeekAsDate } from '@/lib/date';
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const LEGEND_STEPS = [0, 0.25, 0.5, 0.75, 1];
+
+function getCellColor(pct: number) {
+  return pct > 0
+    ? `color-mix(in oklch, var(--primary) ${Math.round(15 + pct * 85)}%, var(--surface-raised))`
+    : 'var(--surface-raised)';
+}
 
 export function WeeklyTraffic({ websiteId }: { websiteId: string }) {
   const { data, isLoading, error } = useWeeklyTrafficQuery(websiteId);
@@ -13,105 +23,110 @@ export function WeeklyTraffic({ websiteId }: { websiteId: string }) {
     .fill(weekStartsOn)
     .map((d, i) => (d + i) % 7);
 
-  const [, max = 1] = data
-    ? data.reduce((arr: number[], hours: number[], index: number) => {
-        const min = Math.min(...hours);
-        const max = Math.max(...hours);
+  const formatDay = (day: number, pattern: string) =>
+    format(getDayOfWeekAsDate(day), pattern, { locale: dateLocale });
+  const formatHour = (hour: number) =>
+    format(addHours(startOfDay(new Date()), hour), 'haaa', { locale: dateLocale });
 
-        if (index === 0) {
-          return [min, max];
-        }
+  const peak = data
+    ? daysOfWeek.reduce(
+        (best, day) => {
+          data[day]?.forEach((count: number, hour: number) => {
+            if (count > best.count) {
+              best = { day, hour, count };
+            }
+          });
+          return best;
+        },
+        { day: 0, hour: 0, count: 0 },
+      )
+    : null;
 
-        if (min < arr[0]) {
-          arr[0] = min;
-        }
-
-        if (max > arr[1]) {
-          arr[1] = max;
-        }
-
-        return arr;
-      }, [])
-    : [];
+  const max = peak?.count || 1;
 
   return (
     <LoadingPanel data={data} isLoading={isLoading} error={error}>
-      <Grid columns="repeat(8, 1fr)" gap>
-        {data && (
-          <>
-            <Row>&nbsp;</Row>
-            {daysOfWeek.map((index: number) => (
-              <Row key={index} alignItems="center" justifyContent="center">
-                <Text weight="bold" align="center">
-                  {format(getDayOfWeekAsDate(index), 'EEE', { locale: dateLocale })}
+      {data && (
+        <>
+          <Row justifyContent="space-between" alignItems="center" wrap="wrap" gap marginBottom="4">
+            {peak?.count > 0 && (
+              <Row alignItems="center" gap="2">
+                <Text color="muted">{t(labels.peak)}</Text>
+                <Text weight="bold">
+                  {`${formatDay(peak.day, 'EEEE')} ${formatHour(peak.hour)}`}
                 </Text>
+                <Text color="muted">{`· ${peak.count} ${t(labels.visitors).toLowerCase()}`}</Text>
+              </Row>
+            )}
+            <Row alignItems="center" gap="2">
+              <Text size="sm" color="muted">
+                {t(labels.less)}
+              </Text>
+              {LEGEND_STEPS.map(step => (
+                <div
+                  key={step}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    backgroundColor: getCellColor(step),
+                  }}
+                />
+              ))}
+              <Text size="sm" color="muted">
+                {t(labels.more)}
+              </Text>
+            </Row>
+          </Row>
+          <Grid columns="auto repeat(24, minmax(0, 1fr))" gap="1" alignItems="center">
+            <Row />
+            {HOURS.map(hour => (
+              <Row key={hour} justifyContent="center">
+                {hour % 3 === 0 && (
+                  <Text size="xs" color="muted" wrap="nowrap">
+                    {formatHour(hour)}
+                  </Text>
+                )}
               </Row>
             ))}
-            <Grid rows="repeat(24, 16px)" gap="1">
-              {Array(24)
-                .fill(null)
-                .map((_, i) => {
-                  const label = format(addHours(startOfDay(new Date()), i), 'haaa', {
-                    locale: dateLocale,
-                  });
+            {daysOfWeek.map(day => (
+              <Fragment key={day}>
+                <Row paddingRight="2">
+                  <Text size="sm" weight="bold">
+                    {formatDay(day, 'EEE')}
+                  </Text>
+                </Row>
+                {HOURS.map(hour => {
+                  const count = data[day]?.[hour] || 0;
                   return (
-                    <Row key={i} justifyContent="flex-end">
-                      <Text color="muted" size="sm">
-                        {label}
-                      </Text>
-                    </Row>
+                    <TooltipTrigger key={`${day}-${hour}`} delay={0}>
+                      <Focusable>
+                        <div
+                          role="button"
+                          style={{
+                            aspectRatio: '1',
+                            minHeight: 12,
+                            borderRadius: 4,
+                            backgroundColor: getCellColor(count / max),
+                          }}
+                        />
+                      </Focusable>
+                      <Tooltip
+                        placement="top"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.8)', color: 'white' }}
+                      >
+                        <Text size="base">
+                          {`${formatDay(day, 'EEEE')} ${formatHour(hour)} · ${t(labels.visitors)}: ${count}`}
+                        </Text>
+                      </Tooltip>
+                    </TooltipTrigger>
                   );
                 })}
-            </Grid>
-            {daysOfWeek.map((index: number) => {
-              const day = data[index];
-              return (
-                <Grid
-                  rows="repeat(24, 16px)"
-                  justifyContent="center"
-                  alignItems="center"
-                  key={index}
-                  gap="1"
-                >
-                  {day?.map((count: number, j) => {
-                    const pct = max ? count / max : 0;
-                    return (
-                      <TooltipTrigger key={j} delay={0} isDisabled={count <= 0}>
-                        <Focusable>
-                          <Row
-                            alignItems="center"
-                            justifyContent="center"
-                            backgroundColor="surface-raised"
-                            width="16px"
-                            height="16px"
-                            borderRadius="full"
-                            style={{ margin: '0 auto' }}
-                            role="button"
-                          >
-                            <Row
-                              backgroundColor="primary"
-                              width="16px"
-                              height="16px"
-                              borderRadius="full"
-                              style={{ opacity: pct, transform: `scale(${pct})` }}
-                            />
-                          </Row>
-                        </Focusable>
-                        <Tooltip
-                          placement="right"
-                          style={{ backgroundColor: 'rgba(0,0,0,0.8)', color: 'white' }}
-                        >
-                          <Text size="base">{`${t(labels.visitors)}: ${count}`}</Text>
-                        </Tooltip>
-                      </TooltipTrigger>
-                    );
-                  })}
-                </Grid>
-              );
-            })}
-          </>
-        )}
-      </Grid>
+              </Fragment>
+            ))}
+          </Grid>
+        </>
+      )}
     </LoadingPanel>
   );
 }

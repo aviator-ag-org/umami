@@ -5,6 +5,7 @@ import { LinkButton } from '@/components/common/LinkButton';
 import { SortableLabel } from '@/components/common/SortableLabel';
 import { useMessages, useNavigation } from '@/components/hooks';
 import { SquarePen } from '@/components/icons';
+import { WebsiteCardGrid } from './WebsiteCard';
 
 export interface WebsitesTableProps extends DataTableProps {
   showActions?: boolean;
@@ -16,6 +17,10 @@ export interface WebsitesTableProps extends DataTableProps {
 export function WebsitesTable({ showActions, renderLink, ...props }: WebsitesTableProps) {
   const { t, labels } = useMessages();
   const { renderUrl } = useNavigation();
+
+  if (props.displayMode === 'cards') {
+    return <WebsiteCardGrid data={props.data as any[]} showActions={showActions} />;
+  }
 
   return (
     <DataTable {...props}>
