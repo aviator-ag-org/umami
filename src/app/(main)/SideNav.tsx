@@ -16,6 +16,7 @@ import { IconLabel } from '@/components/common/IconLabel';
 import Link from '@/components/common/Link';
 import { useGlobalState, useMessages, useNavigation } from '@/components/hooks';
 import {
+  ChartColumnStacked,
   Globe,
   Grid2x2,
   LayoutDashboard,
@@ -53,6 +54,12 @@ export function SideNav(props: any) {
       label: t(labels.websites),
       path: '/websites',
       icon: <Globe />,
+    },
+    {
+      id: 'overview',
+      label: t(labels.overview),
+      path: '/overview',
+      icon: <ChartColumnStacked />,
     },
     {
       id: 'links',

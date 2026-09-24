@@ -150,3 +150,10 @@ export async function canTransferWebsiteToTeam({ user }: Auth, websiteId: string
 
   return false;
 }
+
+export async function canViewBatchWebsites(auth: Auth, websiteIds: string[]) {
+  const requestedIds = Array.from(new Set(websiteIds));
+  const allowed = await Promise.all(requestedIds.map(id => canViewWebsite(auth, id)));
+
+  return requestedIds.filter((_, i) => allowed[i]);
+}
