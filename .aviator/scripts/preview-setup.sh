@@ -342,35 +342,8 @@ fi
 # each other. created_at is the only timeline column in these tables — date_value
 # is a user-supplied property value and is left alone.
 t "Refreshing demo data timestamps..."
-psql_umami -v ON_ERROR_STOP=1 -q <<'SQL' || t "  WARN: could not shift demo timestamps"
-DO $$
-DECLARE
-  latest      timestamptz;
-  shift_days  integer;
-BEGIN
-  SELECT max(created_at) INTO latest FROM website_event;
-
-  IF latest IS NULL THEN
-    RAISE NOTICE 'no seeded events — nothing to shift';
-    RETURN;
-  END IF;
-
-  shift_days := floor(extract(epoch FROM (now() - latest)) / 86400)::int;
-
-  IF shift_days < 1 THEN
-    RAISE NOTICE 'demo data is already current';
-    RETURN;
-  END IF;
-
-  UPDATE session       SET created_at = created_at + make_interval(days => shift_days);
-  UPDATE website_event SET created_at = created_at + make_interval(days => shift_days);
-  UPDATE event_data    SET created_at = created_at + make_interval(days => shift_days);
-  UPDATE session_data  SET created_at = created_at + make_interval(days => shift_days);
-  UPDATE revenue       SET created_at = created_at + make_interval(days => shift_days);
-
-  RAISE NOTICE 'shifted demo analytics forward % day(s)', shift_days;
-END $$;
-SQL
+psql_umami -v ON_ERROR_STOP=1 -q -f .aviator/scripts/refresh-demo-timestamps.sql \
+  || t "  WARN: could not shift demo timestamps"
 
 # --- Start the server --------------------------------------------------------
 #
