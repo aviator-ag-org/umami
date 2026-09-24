@@ -5,12 +5,20 @@ import { useEffect } from 'react';
 import { MobileNav } from '@/app/(main)/MobileNav';
 import { SideNav } from '@/app/(main)/SideNav';
 import { TopNav } from '@/app/(main)/TopNav';
-import { useConfig, useLoginQuery, useNavigation, useTeamQuery } from '@/components/hooks';
+import { CommandPalette } from '@/components/common/CommandPalette';
+import {
+  useCommandPalette,
+  useConfig,
+  useLoginQuery,
+  useNavigation,
+  useTeamQuery,
+} from '@/components/hooks';
 import { LAST_TEAM_CONFIG } from '@/lib/constants';
 import { removeItem, setItem } from '@/lib/storage';
 import { UpdateNotice } from './UpdateNotice';
 
 export function App({ children }) {
+  useCommandPalette();
   const { user, isLoading, error } = useLoginQuery();
   const config = useConfig();
   const { pathname, router, teamId } = useNavigation();
@@ -87,6 +95,7 @@ export function App({ children }) {
           src={`${process.env.basePath || ''}/recorder.js`}
         />
       )}
+      <CommandPalette />
     </Grid>
   );
 }
