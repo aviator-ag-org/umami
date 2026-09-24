@@ -1,4 +1,4 @@
-import { DataColumn, DataTable, type DataTableProps, Icon } from '@umami/react-zen';
+import { DataColumn, DataTable, type DataTableProps, Icon, Text } from '@umami/react-zen';
 import type { ReactNode } from 'react';
 import { DateDistance } from '@/components/common/DateDistance';
 import { LinkButton } from '@/components/common/LinkButton';
@@ -10,10 +10,11 @@ export interface WebsitesTableProps extends DataTableProps {
   showActions?: boolean;
   allowEdit?: boolean;
   allowView?: boolean;
+  showGroupPath?: boolean;
   renderLink?: (row: any) => ReactNode;
 }
 
-export function WebsitesTable({ showActions, renderLink, ...props }: WebsitesTableProps) {
+export function WebsitesTable({ showActions, showGroupPath, renderLink, ...props }: WebsitesTableProps) {
   const { t, labels } = useMessages();
   const { renderUrl } = useNavigation();
 
@@ -22,7 +23,22 @@ export function WebsitesTable({ showActions, renderLink, ...props }: WebsitesTab
       <DataColumn id="name" label={<SortableLabel label={t(labels.name)} sortKey="name" />}>
         {renderLink}
       </DataColumn>
-      <DataColumn id="domain" label={<SortableLabel label={t(labels.domain)} sortKey="domain" />} />
+      <DataColumn
+        id="domain"
+        label={<SortableLabel label={t(labels.domain)} sortKey="domain" />}
+        style={{ minWidth: 0 }}
+      >
+        {(row: any) => (
+          <Text truncate title={row.domain} style={{ maxWidth: '100%' }}>
+            {row.domain}
+          </Text>
+        )}
+      </DataColumn>
+      {showGroupPath && (
+        <DataColumn id="groupPath" label={t(labels.groupPath)}>
+          {(row: any) => row.groupPath ?? '—'}
+        </DataColumn>
+      )}
       <DataColumn
         id="created"
         label={
